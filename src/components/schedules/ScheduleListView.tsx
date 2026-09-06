@@ -287,7 +287,7 @@ export const ScheduleListView: React.FC<ScheduleListViewProps> = ({
                   <th className="py-3 px-3">Ruang</th>
                   <th className="py-3 px-3">Kelas</th>
                   <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3 text-center w-36">Aksi</th>
+                  {canEditSchedule && <th className="py-3 px-3 text-center w-36">Aksi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -335,49 +335,47 @@ export const ScheduleListView: React.FC<ScheduleListViewProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => onSelectDetail(item)}
-                            title="Lihat Detail"
-                            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          {canEditSchedule && (
-                            <>
-                              <button
-                                onClick={() => onEditSchedule(item)}
-                                title="Edit Jadwal"
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => onMoveSchedule(item)}
-                                title="Pindahkan Jadwal"
-                                className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                              >
-                                <MoveHorizontal className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => duplicateSchedule(item.id)}
-                                title="Duplikasi Jadwal"
-                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeletePrompt(item.id)}
-                                title="Hapus Jadwal"
-                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+                      {canEditSchedule && (
+                        <td className="py-3 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => onSelectDetail(item)}
+                              title="Lihat Detail"
+                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onEditSchedule(item)}
+                              title="Edit Jadwal"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onMoveSchedule(item)}
+                              title="Pindahkan Jadwal"
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition"
+                            >
+                              <MoveHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => duplicateSchedule(item.id)}
+                              title="Duplikasi Jadwal"
+                              className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePrompt(item.id)}
+                              title="Hapus Jadwal"
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
