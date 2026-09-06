@@ -1,6 +1,7 @@
 import React from 'react';
 import { Schedule, ConflictDetail } from '../../types';
 import { useAcademic } from '../../context/AcademicContext';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../common/Modal';
 import {
   Calendar,
@@ -37,6 +38,7 @@ export const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
   onMove,
 }) => {
   const { conflicts, rooms, lecturers, subjects, classes } = useAcademic();
+  const { canEditSchedule } = useAuth();
 
   if (!schedule) return null;
 
@@ -156,53 +158,71 @@ export const ScheduleDetailModal: React.FC<ScheduleDetailModalProps> = ({
 
         {/* Action Buttons */}
         <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
-          <button
-            id="btn-delete-from-detail"
-            type="button"
-            onClick={() => {
-              onDelete(schedule.id);
-              onClose();
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold transition"
-          >
-            <Trash2 className="w-4 h-4" /> Hapus
-          </button>
+          {canEditSchedule ? (
+            <>
+              <button
+                id="btn-delete-from-detail"
+                type="button"
+                onClick={() => {
+                  onDelete(schedule.id);
+                  onClose();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" /> Hapus
+              </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              id="btn-move-from-detail"
-              type="button"
-              onClick={() => {
-                onMove(schedule);
-                onClose();
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition"
-            >
-              <MoveHorizontal className="w-4 h-4" /> Pindahkan
-            </button>
-            <button
-              id="btn-duplicate-from-detail"
-              type="button"
-              onClick={() => {
-                onDuplicate(schedule.id);
-                onClose();
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition"
-            >
-              <Copy className="w-4 h-4" /> Duplikasi
-            </button>
-            <button
-              id="btn-edit-from-detail"
-              type="button"
-              onClick={() => {
-                onEdit(schedule);
-                onClose();
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition"
-            >
-              <Edit2 className="w-4 h-4" /> Edit Jadwal
-            </button>
-          </div>
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-move-from-detail"
+                  type="button"
+                  onClick={() => {
+                    onMove(schedule);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition cursor-pointer"
+                >
+                  <MoveHorizontal className="w-4 h-4" /> Pindahkan
+                </button>
+                <button
+                  id="btn-duplicate-from-detail"
+                  type="button"
+                  onClick={() => {
+                    onDuplicate(schedule.id);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-medium text-slate-700 transition cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" /> Duplikasi
+                </button>
+                <button
+                  id="btn-edit-from-detail"
+                  type="button"
+                  onClick={() => {
+                    onEdit(schedule);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer"
+                >
+                  <Edit2 className="w-4 h-4" /> Edit Jadwal
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-between">
+              <span className="text-xs text-slate-500 font-medium">
+                Rincian Informasi Jadwal Kuliah
+              </span>
+              <button
+                id="btn-close-from-detail"
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </Modal>
