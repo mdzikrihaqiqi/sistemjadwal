@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "schedule": {
+      "title": "Schedule",
+      "description": "Data jadwal perkuliahan FEBI",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mataKuliahId": { "type": "string" },
+        "mataKuliahKode": { "type": "string" },
+        "mataKuliahNama": { "type": "string" },
+        "sks": { "type": "number" },
+        "dosenId": { "type": "string" },
+        "dosenNama": { "type": "string" },
+        "dosenNidn": { "type": "string" },
+        "ruangId": { "type": "string" },
+        "ruangNama": { "type": "string" },
+        "ruangKapasitas": { "type": "number" },
+        "kelasId": { "type": "string" },
+        "kelasNama": { "type": "string" },
+        "prodi": { "type": "string" },
+        "semester": { "type": "number" },
+        "hari": { "type": "string" },
+        "jamMulai": { "type": "string" },
+        "jamSelesai": { "type": "string" },
+        "slotMulaiId": { "type": "string" },
+        "slotSelesaiId": { "type": "string" },
+        "tahunAkademikId": { "type": "string" },
+        "catatan": { "type": "string" },
+        "warnaLabel": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["mataKuliahNama", "dosenNama", "ruangNama", "kelasNama", "hari", "jamMulai", "jamSelesai"]
+    },
+    "subject": {
+      "title": "Subject",
+      "description": "Data mata kuliah",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "kode": { "type": "string" },
+        "nama": { "type": "string" },
+        "sks": { "type": "number" },
+        "semester": { "type": "number" },
+        "prodi": { "type": "string" },
+        "kelompok": { "type": "string" }
+      },
+      "required": ["kode", "nama", "sks"]
+    },
+    "lecturer": {
+      "title": "Lecturer",
+      "description": "Data dosen pengampu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "nidn": { "type": "string" },
+        "email": { "type": "string" },
+        "prodi": { "type": "string" }
+      },
+      "required": ["nama"]
+    },
+    "room": {
+      "title": "Room",
+      "description": "Data ruangan perkuliahan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "kode": { "type": "string" },
+        "gedung": { "type": "string" },
+        "lantai": { "type": "number" },
+        "kapasitas": { "type": "number" },
+        "jenis": { "type": "string" }
+      },
+      "required": ["nama", "kapasitas"]
+    },
+    "classGroup": {
+      "title": "ClassGroup",
+      "description": "Data rombongan belajar kelas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "prodi": { "type": "string" },
+        "semester": { "type": "number" },
+        "jumlahMahasiswa": { "type": "number" }
+      },
+      "required": ["nama", "prodi"]
+    },
+    "timeSlot": {
+      "title": "TimeSlot",
+      "description": "Data slot waktu perkuliahan",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "jamMulai": { "type": "string" },
+        "jamSelesai": { "type": "string" },
+        "urutan": { "type": "number" }
+      },
+      "required": ["label", "jamMulai", "jamSelesai"]
+    },
+    "academicYear": {
+      "title": "AcademicYear",
+      "description": "Data tahun akademik",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "tahunMulai": { "type": "number" },
+        "tahunSelesai": { "type": "number" },
+        "semester": { "type": "string" },
+        "aktif": { "type": "boolean" }
+      },
+      "required": ["nama", "semester"]
+    },
+    "reportSetting": {
+      "title": "ReportSetting",
+      "description": "Konfigurasi kop surat dan laporan akademik",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "kementerian": { "type": "string" },
+        "universitas": { "type": "string" },
+        "fakultas": { "type": "string" },
+        "alamat": { "type": "string" },
+        "kontak": { "type": "string" },
+        "website": { "type": "string" },
+        "kota": { "type": "string" },
+        "namaDekan": { "type": "string" },
+        "nipDekan": { "type": "string" },
+        "jabatanDekan": { "type": "string" },
+        "namaWadek1": { "type": "string" },
+        "nipWadek1": { "type": "string" },
+        "jabatanWadek1": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/schedules/{scheduleId}": {
+      "schema": "schedule",
+      "description": "Koleksi jadwal perkuliahan FEBI"
+    },
+    "/subjects/{subjectId}": {
+      "schema": "subject",
+      "description": "Koleksi mata kuliah"
+    },
+    "/lecturers/{lecturerId}": {
+      "schema": "lecturer",
+      "description": "Koleksi dosen pengampu"
+    },
+    "/rooms/{roomId}": {
+      "schema": "room",
+      "description": "Koleksi ruangan perkuliahan"
+    },
+    "/classes/{classId}": {
+      "schema": "classGroup",
+      "description": "Koleksi rombongan belajar kelas"
+    },
+    "/time_slots/{slotId}": {
+      "schema": "timeSlot",
+      "description": "Koleksi slot waktu perkuliahan"
+    },
+    "/academic_years/{yearId}": {
+      "schema": "academicYear",
+      "description": "Koleksi tahun akademik"
+    },
+    "/settings/{settingId}": {
+      "schema": "reportSetting",
+      "description": "Koleksi pengaturan kop dan laporan"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAcademic } from '../../context/AcademicContext';
 import { useAuth } from '../../context/AuthContext';
 import { DEFAULT_TIME_SLOTS } from '../../utils/matrixUtils';
@@ -22,6 +22,16 @@ import {
   Image as ImageIcon,
   Eye,
   Sparkles,
+  Cloud,
+  CloudUpload,
+  CloudDownload,
+  Download,
+  Upload,
+  Loader2,
+  Check,
+  RefreshCw,
+  Smartphone,
+  Laptop,
 } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 
@@ -33,6 +43,13 @@ export const SettingsView: React.FC = () => {
     addToast,
     reportSettings,
     updateReportSettings,
+    schedules,
+    isCloudConnected,
+    isCloudSyncing,
+    syncLocalToCloud,
+    fetchFromCloud,
+    exportBackupJson,
+    importBackupJson,
   } = useAcademic();
 
   const { currentUser, users, canEditSettings, updateAdminPassword } = useAuth();
@@ -49,6 +66,31 @@ export const SettingsView: React.FC = () => {
   const [newSlotStart, setNewSlotStart] = useState('17:00');
   const [newSlotEnd, setNewSlotEnd] = useState('18:20');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isRestoringJson, setIsRestoringJson] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsRestoringJson(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        await importBackupJson(text);
+      } catch {
+        addToast({
+          type: 'error',
+          title: 'Gagal Membaca File',
+          message: 'File cadangan tidak dapat diproses.',
+        });
+      } finally {
+        setIsRestoringJson(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleSaveReportSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -835,26 +877,155 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: PEMELIHARAAN DATA */}
+      {/* TAB 4: PEMELIHARAAN DATA & SINKRONISASI CLOUD */}
       {activeTab === 'maintenance' && (
-        <div className="bg-rose-50/70 p-5 rounded-2xl border border-rose-200 space-y-3">
-          <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
-            <ShieldAlert className="w-5 h-5 text-rose-600" />
-            <span>Zona Pemeliharaan &amp; Reset Data Demo</span>
-          </div>
-          <p className="text-xs text-rose-700">
-            Jika Anda ingin mengembalikan seluruh jadwal, data ruangan, dosen, mata kuliah, dan bentrok ke kondisi awal contoh sistem akademik, Anda dapat menekan tombol di bawah ini.
-          </p>
+        <div className="space-y-6">
+          {/* Card 1: Cloud Database Synchronization (Firebase) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                  <Cloud className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Sinkronisasi Cloud Database (Firebase Firestore)
+                    </h3>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                      Realtime Aktif
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Data jadwal yang diunggah dari Excel di PC otomatis tersinkronisasi ke server online sehingga dapat langsung dibuka melalui HP.
+                  </p>
+                </div>
+              </div>
 
-          <button
-            id="btn-trigger-reset-demo"
-            type="button"
-            onClick={() => setIsResetConfirmOpen(true)}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset ke Data Contoh Asli
-          </button>
+              {/* Status info */}
+              <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-xs">
+                <div className="text-right">
+                  <p className="text-[10px] uppercase font-bold text-slate-400">Total Jadwal</p>
+                  <p className="font-bold text-slate-800">{schedules.length} Jadwal</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Sync explanations and buttons */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold text-slate-800">
+                  <Laptop className="w-4 h-4 text-blue-600" />
+                  <span>Sinkronisasi Lintas Perangkat (PC &amp; HP)</span>
+                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                </div>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Jika Anda baru saja mengunggah file Excel di PC dan ingin memastikan seluruh data langsung tersedia di HP Anda, tekan tombol <strong>"Sinkronkan ke Cloud"</strong> di samping.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 justify-end">
+                <button
+                  id="btn-sync-to-cloud"
+                  type="button"
+                  onClick={syncLocalToCloud}
+                  disabled={isCloudSyncing}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {isCloudSyncing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CloudUpload className="w-4 h-4" />
+                  )}
+                  <span>Sinkronkan Seluruh Data ke Cloud</span>
+                </button>
+
+                <button
+                  id="btn-fetch-from-cloud"
+                  type="button"
+                  onClick={fetchFromCloud}
+                  disabled={isCloudSyncing}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition inline-flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <CloudDownload className="w-4 h-4 text-slate-500" />
+                  <span>Muat Ulang dari Cloud</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Backup and Restore JSON */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Download className="w-4 h-4 text-blue-600" />
+                  Cadangkan &amp; Pulihkan Data Mandiri (JSON)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Unduh seluruh jadwal dan konfigurasi ke komputer Anda sebagai cadangan arsip mandiri tanpa ketergantungan server.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-export-backup-json"
+                  type="button"
+                  onClick={exportBackupJson}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh Cadangan (.json)</span>
+                </button>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleRestoreFile}
+                  accept=".json,application/json"
+                  className="hidden"
+                  id="input-restore-backup-file"
+                />
+
+                <button
+                  id="btn-trigger-restore-json"
+                  type="button"
+                  disabled={isRestoringJson}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {isRestoringJson ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 text-slate-600" />
+                  )}
+                  <span>Pulihkan dari File (.json)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Reset Demo Data */}
+          <div className="bg-rose-50/70 p-5 rounded-2xl border border-rose-200 space-y-3">
+            <div className="flex items-center gap-2 text-rose-800 font-bold text-sm">
+              <ShieldAlert className="w-5 h-5 text-rose-600" />
+              <span>Zona Pemeliharaan &amp; Reset Data Demo</span>
+            </div>
+            <p className="text-xs text-rose-700">
+              Jika Anda ingin mengembalikan seluruh jadwal, data ruangan, dosen, mata kuliah, dan bentrok ke kondisi awal contoh sistem akademik, Anda dapat menekan tombol di bawah ini.
+            </p>
+
+            <button
+              id="btn-trigger-reset-demo"
+              type="button"
+              onClick={() => setIsResetConfirmOpen(true)}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-2 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset ke Data Contoh Asli
+            </button>
+          </div>
         </div>
       )}
 

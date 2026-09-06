@@ -24,8 +24,27 @@ import {
   INITIAL_REPORT_SETTINGS,
 } from '../data/initialData';
 import { findAllConflicts, checkScheduleConflict } from '../utils/conflictDetector';
+import {
+  saveScheduleToFirestore,
+  deleteScheduleFromFirestore,
+  batchSaveSchedulesToFirestore,
+  clearAllSchedulesFromFirestore,
+  subscribeToSchedules,
+  saveMasterCollection,
+  fetchMasterCollection,
+  saveSettingsToFirestore,
+  fetchSettingsFromFirestore,
+} from '../services/firestoreSync';
 
 interface AcademicContextType {
+  // Cloud Database Sync
+  isCloudConnected: boolean;
+  isCloudSyncing: boolean;
+  syncLocalToCloud: () => Promise<void>;
+  fetchFromCloud: () => Promise<void>;
+  exportBackupJson: () => void;
+  importBackupJson: (jsonString: string) => Promise<boolean>;
+
   // Data lists
   schedules: Schedule[];
   yearSchedules: Schedule[];
@@ -160,6 +179,8 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -208,7 +229,11 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [reportSettings]);
 
   const updateReportSettings = useCallback((partial: Partial<ReportSettings>) => {
-    setReportSettings((prev) => ({ ...prev, ...partial }));
+    setReportSettings((prev) => {
+      const updated = { ...prev, ...partial };
+      saveSettingsToFirestore(updated).catch(() => {});
+      return updated;
+    });
   }, []);
 
   // Toast Helpers
@@ -224,6 +249,195 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Cloud Database Sync Methods
+  const syncLocalToCloud = useCallback(async () => {
+    setIsCloudSyncing(true);
+    try {
+      if (schedules.length > 0) {
+        await batchSaveSchedulesToFirestore(schedules);
+      }
+      await saveMasterCollection('subjects', subjects);
+      await saveMasterCollection('lecturers', lecturers);
+      await saveMasterCollection('rooms', rooms);
+      await saveMasterCollection('classes', classes);
+      await saveMasterCollection('time_slots', timeSlots);
+      await saveMasterCollection('academic_years', academicYears);
+      await saveSettingsToFirestore(reportSettings);
+      setIsCloudConnected(true);
+      addToast({
+        type: 'success',
+        title: 'Sinkronisasi Cloud Berhasil',
+        message: `${schedules.length} jadwal dan data master berhasil disimpan di server online. Sekarang dapat dibuka di HP.`,
+      });
+    } catch (err) {
+      console.error(err);
+      addToast({
+        type: 'error',
+        title: 'Gagal Sinkronisasi Cloud',
+        message: 'Tidak dapat mengunggah ke database online. Periksa koneksi internet.',
+      });
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  }, [schedules, subjects, lecturers, rooms, classes, timeSlots, academicYears, reportSettings, addToast]);
+
+  const fetchFromCloud = useCallback(async () => {
+    setIsCloudSyncing(true);
+    try {
+      const [cloudSubjects, cloudLecturers, cloudRooms, cloudClasses, cloudSlots, cloudYears, cloudSettings] =
+        await Promise.all([
+          fetchMasterCollection<Subject>('subjects'),
+          fetchMasterCollection<Lecturer>('lecturers'),
+          fetchMasterCollection<Room>('rooms'),
+          fetchMasterCollection<ClassGroup>('classes'),
+          fetchMasterCollection<TimeSlot>('time_slots'),
+          fetchMasterCollection<AcademicYear>('academic_years'),
+          fetchSettingsFromFirestore(),
+        ]);
+
+      if (cloudSubjects.length > 0) setSubjects(cloudSubjects);
+      if (cloudLecturers.length > 0) setLecturers(cloudLecturers);
+      if (cloudRooms.length > 0) setRooms(cloudRooms);
+      if (cloudClasses.length > 0) setClasses(cloudClasses);
+      if (cloudSlots.length > 0) setTimeSlots(cloudSlots);
+      if (cloudYears.length > 0) setAcademicYears(cloudYears);
+      if (cloudSettings) setReportSettings(cloudSettings);
+
+      setIsCloudConnected(true);
+      addToast({
+        type: 'success',
+        title: 'Data Cloud Dimuat',
+        message: 'Data master dan pengaturan berhasil dimuat dari database online.',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  }, [addToast]);
+
+  const exportBackupJson = useCallback(() => {
+    const backupData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      activeAcademicYearId,
+      schedules,
+      academicYears,
+      subjects,
+      lecturers,
+      rooms,
+      classes,
+      timeSlots,
+      reportSettings,
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_simatrik_febi_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    addToast({
+      type: 'success',
+      title: 'Cadangan Diunduh',
+      message: 'File cadangan JSON berhasil diunduh. Anda dapat memulihkannya kapan saja di HP maupun PC.',
+    });
+  }, [activeAcademicYearId, schedules, academicYears, subjects, lecturers, rooms, classes, timeSlots, reportSettings, addToast]);
+
+  const importBackupJson = useCallback(
+    async (jsonString: string): Promise<boolean> => {
+      try {
+        const parsed = JSON.parse(jsonString);
+        if (!parsed || !Array.isArray(parsed.schedules)) {
+          throw new Error('Format file cadangan tidak valid.');
+        }
+
+        setSchedules(parsed.schedules);
+        if (Array.isArray(parsed.academicYears)) setAcademicYears(parsed.academicYears);
+        if (parsed.activeAcademicYearId) setActiveAcademicYearIdState(parsed.activeAcademicYearId);
+        if (Array.isArray(parsed.subjects)) setSubjects(parsed.subjects);
+        if (Array.isArray(parsed.lecturers)) setLecturers(parsed.lecturers);
+        if (Array.isArray(parsed.rooms)) setRooms(parsed.rooms);
+        if (Array.isArray(parsed.classes)) setClasses(parsed.classes);
+        if (Array.isArray(parsed.timeSlots)) setTimeSlots(parsed.timeSlots);
+        if (parsed.reportSettings) setReportSettings(parsed.reportSettings);
+
+        // Auto sync to cloud
+        try {
+          await batchSaveSchedulesToFirestore(parsed.schedules);
+        } catch {
+          // ignore
+        }
+
+        addToast({
+          type: 'success',
+          title: 'Pemulihan Berhasil',
+          message: `${parsed.schedules.length} jadwal dan seluruh data master berhasil dipulihkan.`,
+        });
+        return true;
+      } catch (err) {
+        addToast({
+          type: 'error',
+          title: 'Gagal Memulihkan Cadangan',
+          message: err instanceof Error ? err.message : 'File tidak valid.',
+        });
+        return false;
+      }
+    },
+    [addToast]
+  );
+
+  // Firestore Realtime Listener for Schedules
+  useEffect(() => {
+    let isInitial = true;
+    const unsub = subscribeToSchedules(
+      (cloudSchedules) => {
+        setIsCloudConnected(true);
+        if (cloudSchedules.length > 0) {
+          setSchedules(cloudSchedules);
+        } else if (isInitial) {
+          // If cloud is empty but local has custom schedules, auto-sync to cloud!
+          const localSchedules = loadStorage<Schedule[]>(STORAGE_KEYS.SCHEDULES, []);
+          if (localSchedules.length > 0) {
+            batchSaveSchedulesToFirestore(localSchedules).catch(() => {});
+          }
+        }
+        isInitial = false;
+      },
+      () => {
+        setIsCloudConnected(false);
+      }
+    );
+
+    // Also fetch initial master data from cloud
+    Promise.all([
+      fetchMasterCollection<Subject>('subjects'),
+      fetchMasterCollection<Lecturer>('lecturers'),
+      fetchMasterCollection<Room>('rooms'),
+      fetchMasterCollection<ClassGroup>('classes'),
+      fetchMasterCollection<TimeSlot>('time_slots'),
+      fetchMasterCollection<AcademicYear>('academic_years'),
+      fetchSettingsFromFirestore(),
+    ])
+      .then(([mSubjects, mLecturers, mRooms, mClasses, mSlots, mYears, mSettings]) => {
+        if (mSubjects.length > 0) setSubjects(mSubjects);
+        if (mLecturers.length > 0) setLecturers(mLecturers);
+        if (mRooms.length > 0) setRooms(mRooms);
+        if (mClasses.length > 0) setClasses(mClasses);
+        if (mSlots.length > 0) setTimeSlots(mSlots);
+        if (mYears.length > 0) setAcademicYears(mYears);
+        if (mSettings) setReportSettings(mSettings);
+      })
+      .catch(() => {});
+
+    return () => {
+      unsub();
+    };
   }, []);
 
   const activeAcademicYear = useMemo(
@@ -334,6 +548,7 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       setSchedules((prev) => [scheduleWithId, ...prev]);
+      saveScheduleToFirestore(scheduleWithId).catch(() => {});
 
       // Auto-register Master items if they don't exist yet
       if (scheduleWithId.ruangNama && !rooms.some((r) => r.nama.toLowerCase() === scheduleWithId.ruangNama.toLowerCase())) {
@@ -413,9 +628,11 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return { success: false, conflicts: detectedConflicts };
       }
 
+      const updatedWithTimestamp = { ...updated, updatedAt: new Date().toISOString() };
       setSchedules((prev) =>
-        prev.map((item) => (item.id === updated.id ? { ...updated, updatedAt: new Date().toISOString() } : item))
+        prev.map((item) => (item.id === updated.id ? updatedWithTimestamp : item))
       );
+      saveScheduleToFirestore(updatedWithTimestamp).catch(() => {});
 
       addToast({
         type: 'success',
@@ -432,6 +649,7 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     (id: string) => {
       const sch = schedules.find((s) => s.id === id);
       setSchedules((prev) => prev.filter((s) => s.id !== id));
+      deleteScheduleFromFirestore(id).catch(() => {});
       addToast({
         type: 'info',
         title: 'Jadwal Dihapus',
@@ -454,6 +672,7 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
 
       setSchedules((prev) => [duplicated, ...prev]);
+      saveScheduleToFirestore(duplicated).catch(() => {});
       addToast({
         type: 'success',
         title: 'Jadwal Diduplikasi',
@@ -496,6 +715,7 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       setSchedules((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      saveScheduleToFirestore(updated).catch(() => {});
       addToast({
         type: 'success',
         title: 'Jadwal Berhasil Dipindahkan',
@@ -516,7 +736,13 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         createdAt: new Date().toISOString(),
       }));
 
-      setSchedules((prev) => [...newItems, ...prev]);
+      setSchedules((prev) => {
+        const combined = [...newItems, ...prev];
+        batchSaveSchedulesToFirestore(combined).catch((err) => {
+          console.error('Failed to sync batch to Firestore:', err);
+        });
+        return combined;
+      });
 
       // Auto add new Master rooms, lecturers, classes, subjects
       const newRooms = [...rooms];
@@ -570,6 +796,11 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setClasses(newClasses);
       setSubjects(newSubjects);
 
+      saveMasterCollection('rooms', newRooms).catch(() => {});
+      saveMasterCollection('lecturers', newLecturers).catch(() => {});
+      saveMasterCollection('classes', newClasses).catch(() => {});
+      saveMasterCollection('subjects', newSubjects).catch(() => {});
+
       addToast({
         type: 'success',
         title: 'Import Berhasil',
@@ -610,6 +841,7 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const clearAllSchedules = useCallback(() => {
     setSchedules([]);
+    clearAllSchedulesFromFirestore().catch(() => {});
     addToast({
       type: 'info',
       title: 'Jadwal Dikosongkan',
@@ -698,6 +930,13 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <AcademicContext.Provider
       value={{
+        isCloudConnected,
+        isCloudSyncing,
+        syncLocalToCloud,
+        fetchFromCloud,
+        exportBackupJson,
+        importBackupJson,
+
         schedules,
         yearSchedules,
         filteredSchedules,

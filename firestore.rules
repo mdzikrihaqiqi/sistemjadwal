@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Health check & connection test
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Jadwal perkuliahan FEBI (Bisa dibaca publik oleh tamu, diedit oleh pengelola)
+    match /schedules/{scheduleId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Mata Kuliah
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Dosen
+    match /lecturers/{lecturerId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Ruangan
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Rombongan Belajar / Kelas
+    match /classes/{classId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Slot Waktu Jam Perkuliahan
+    match /time_slots/{slotId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Master data: Tahun Akademik
+    match /academic_years/{yearId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Pengaturan Kop Surat & Pejabat Laporan
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // Default deny untuk dokumen lainnya
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

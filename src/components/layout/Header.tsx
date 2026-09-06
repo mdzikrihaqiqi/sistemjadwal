@@ -15,6 +15,8 @@ import {
   BookOpen,
   GraduationCap,
   LogIn,
+  Cloud,
+  Loader2,
 } from 'lucide-react';
 import { useAcademic } from '../../context/AcademicContext';
 import { useAuth } from '../../context/AuthContext';
@@ -44,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
     searchQuery,
     setSearchQuery,
     conflicts,
+    isCloudSyncing,
+    syncLocalToCloud,
   } = useAcademic();
 
   const { currentUser, canEditSchedule, canPrintReports, isAdmin } = useAuth();
@@ -141,6 +145,28 @@ export const Header: React.FC<HeaderProps> = ({
             ))}
           </select>
         </div>
+
+        {/* Cloud Sync Status Indicator */}
+        <button
+          id="btn-header-cloud-sync"
+          onClick={syncLocalToCloud}
+          disabled={isCloudSyncing}
+          title={
+            isCloudSyncing
+              ? 'Sedang menyinkronkan data dengan Cloud...'
+              : 'Database Cloud Aktif (Tersinkronisasi antar PC & HP). Klik untuk sinkronisasi manual.'
+          }
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium transition cursor-pointer"
+        >
+          {isCloudSyncing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600 shrink-0" />
+          ) : (
+            <Cloud className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          )}
+          <span className="text-[11px] font-semibold">
+            {isCloudSyncing ? 'Sinkron...' : 'Cloud Aktif'}
+          </span>
+        </button>
 
         {/* Conflict Alert indicator */}
         {conflictCount > 0 && (
