@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Manajemen Jadwal Perkuliahan dan Matriks Ruangan",
+  "description": "Sistem Manajemen Jadwal Perkuliahan dan Matriks Ruangan Akademik Perguruan Tinggi dengan Import Excel, Deteksi Bentrok Otomatis, dan Cek Ruangan Kosong",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
